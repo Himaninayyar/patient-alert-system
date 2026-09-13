@@ -31,3 +31,13 @@ CREATE TABLE vital_readings (
   recorded_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE TYPE alert_status_enum AS ENUM ('active', 'resolved');
+
+CREATE TABLE alerts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  patient_id UUID NOT NULL REFERENCES patients(id),
+  vital_type vital_type_enum NOT NULL,
+  status alert_status_enum NOT NULL DEFAULT 'active',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  last_seen_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
