@@ -69,29 +69,15 @@ app.post("/vital-readings", async (req, res) => {
     );
 
     // Step 2: check if this reading is dangerous
-    if (vital_type === "heart_rate" && value > 120) {
-
-      // Step 3: check if an active alert already exists
-      const existingAlert = await pool.query(
-        "SELECT * FROM alerts WHERE patient_id = $1 AND vital_type = $2 AND status = 'active'",
-        [patient_id, vital_type]
-      );
-
-      // Step 4: decide - update or insert?
-      if (existingAlert.rows.length > 0) {
-        // TODO: update last_seen_at
-        await pool.query(
-        "UPDATE alerts SET last_seen_at=now() where id=$1",
-        [existingAlert.rows[0].id]
-      );
-      } else {
-        // TODO: insert new alert
-        await pool.query(
-          "INSERT INTO alerts(patient_id,vital_type) values($1,$2) returning * ",
-          [patient_id,vital_type]
-        );
-      }
-    }
+if (vital_type === "heart_rate" && value > 120) {
+  await pool.query(
+    `INSERT INTO alerts (patient_id, vital_type)
+     VALUES ($1, $2)
+     ON CONFLICT (patient_id, vital_type) WHERE status = 'active'
+     DO UPDATE SET last_seen_at = now()`,
+    [patient_id, vital_type]
+  );
+}
 
     res.status(201).json(result.rows[0]);
   } catch (err) {
