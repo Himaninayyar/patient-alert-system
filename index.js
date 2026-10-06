@@ -91,3 +91,13 @@ if (vital_type === "heart_rate" && value > 120) {
   }
 });
 
+app.get("/alerts",async(req,res)=>{
+  try{
+ const result=await pool.query("SELECT * FROM alerts "); 
+    res.status(200).json(result.rows);
+    }catch(err){
+     res.status(500).json({ error: err.message });
+    }
+  }
+);
+
