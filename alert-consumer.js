@@ -4,7 +4,7 @@ async function receiveMessages() {
   const connection = await amqp.connect("amqp://localhost");
   const channel = await connection.createChannel();
 
-  const queueName = "hello-queue";
+  const queueName = "alert-dispatch";
   await channel.assertQueue(queueName);
 
   console.log("Waiting for messages...");
