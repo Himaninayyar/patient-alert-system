@@ -88,9 +88,16 @@ if (vital_type === "heart_rate" && value > 120) {
   if(isNewAlert){
    const channel= getChannel();
    const messagePayload={alertId:alert.id,vital_type:vital_type,value:value};
-   channel.sendToQueue("alert-dispatch",Buffer.from(JSON.stringify(messagePayload)));
+  
+
+   channel.sendToQueue(
+  "alert-dispatch",
+  Buffer.from(JSON.stringify(messagePayload)),
+  { persistent: true }
+);
    console.log("Published alert to queue :",alert.id);
-  }
+
+}
 }
 
     res.status(201).json(result.rows[0]);
