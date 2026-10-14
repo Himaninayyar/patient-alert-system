@@ -12,10 +12,12 @@ async function connectQueue() {
   await channel.bindQueue("alert-dispatch-dlq", "alert-dlx", "");
 
   // Part 2: the main queue, pointing at the tray's door
-  await channel.assertQueue("alert-dispatch", {
-    durable: true,
-    deadLetterExchange: "alert-dlx",
-  });
+await channel.assertQueue("alert-dispatch-retry", {
+  durable: true,
+  messageTtl: 10000,
+  deadLetterExchange: "",
+  deadLetterRoutingKey: "alert-dispatch",
+});
 
   console.log("Connected to RabbitMQ");
 }
