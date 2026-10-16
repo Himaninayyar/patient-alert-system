@@ -41,3 +41,20 @@ CREATE TABLE alerts (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   last_seen_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+CREATE TABLE alert_dispatches (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  alert_id UUID NOT NULL REFERENCES alerts(id),
+  staff_id UUID NOT NULL REFERENCES staff(id),
+  delivered_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (alert_id, staff_id)
+);
+
+
+CREATE TABLE alert_dispatches (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  alert_id UUID NOT NULL REFERENCES alerts(id),
+  staff_id UUID NOT NULL REFERENCES staff(id),
+  delivered_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (alert_id, staff_id)
+);
