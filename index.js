@@ -3,6 +3,7 @@ const app=express();
 const PORT=3000;
 const pool=require("./db");
 const {connectQueue,getChannel}=require("./queue");
+const {isDangerous} =require("./thresholds");
 
 require("dotenv").config();
 
@@ -72,7 +73,8 @@ app.post("/vital-readings", async (req, res) => {
     );
 
     // Step 2: check if this reading is dangerous
-if (vital_type === "heart_rate" && value > 120) {
+    console.log("CHECK:", vital_type, value, "dangerous =", isDangerous(vital_type, value));
+if (isDangerous(vital_type,value)) {
   const alertResult = await pool.query(
     `INSERT INTO alerts (patient_id, vital_type)
      VALUES ($1, $2)
