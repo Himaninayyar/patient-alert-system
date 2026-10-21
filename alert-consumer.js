@@ -1,5 +1,18 @@
 const amqp = require("amqplib");
 const pool = require("./db");
+const { WebSocketServer, WebSocket } = require("ws");
+
+const wss = new WebSocketServer({ port: 8080 });
+
+function broadcast(data) {
+  const text = JSON.stringify(data);
+  for (const client of wss.clients) {
+    // blank: if client.readyState === WebSocket.OPEN, send text to that client
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(text);
+    }
+  }
+}
 
 const MAX_TRIES = 3;
 
@@ -66,6 +79,15 @@ try {
 
     // 1) tell first
     console.log(`Notifying ${person.name} (${person.role}): ${alert.vital_type} = ${alert.value}`);
+   
+   
+    broadcast({
+  staff: person.name,
+  role: person.role,
+  vital_type: alert.vital_type,
+  value: alert.value,
+});
+
 
     // 2) then write it in the notebook
     await pool.query(
