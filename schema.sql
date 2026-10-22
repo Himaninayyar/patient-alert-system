@@ -1,19 +1,30 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
-CREATE TABLE patients (
+-- Enums: no IF NOT EXISTS exists for types, so we catch the "already exists" error
+DO $$ BEGIN
+  CREATE TYPE vital_type_enum AS ENUM ('heart_rate', 'spo2', 'blood_pressure', 'temperature');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE alert_status_enum AS ENUM ('active', 'resolved');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+CREATE TABLE IF NOT EXISTS patients (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   bed_no INT,
   ward_no INT NOT NULL
 );
 
-CREATE TABLE staff (
+CREATE TABLE IF NOT EXISTS staff (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   role TEXT NOT NULL
 );
 
-CREATE TABLE ward_staff_assignments (
+CREATE TABLE IF NOT EXISTS ward_staff_assignments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   ward_no INT NOT NULL,
   staff_id UUID NOT NULL REFERENCES staff(id),
@@ -21,9 +32,7 @@ CREATE TABLE ward_staff_assignments (
   shift_end TIMESTAMPTZ
 );
 
-CREATE TYPE vital_type_enum AS ENUM ('heart_rate', 'spo2', 'blood_pressure', 'temperature');
-
-CREATE TABLE vital_readings (
+CREATE TABLE IF NOT EXISTS vital_readings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   patient_id UUID NOT NULL REFERENCES patients(id),
   vital_type vital_type_enum NOT NULL,
@@ -31,9 +40,7 @@ CREATE TABLE vital_readings (
   recorded_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TYPE alert_status_enum AS ENUM ('active', 'resolved');
-
-CREATE TABLE alerts (
+CREATE TABLE IF NOT EXISTS alerts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   patient_id UUID NOT NULL REFERENCES patients(id),
   vital_type vital_type_enum NOT NULL,
@@ -42,16 +49,12 @@ CREATE TABLE alerts (
   last_seen_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE alert_dispatches (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  alert_id UUID NOT NULL REFERENCES alerts(id),
-  staff_id UUID NOT NULL REFERENCES staff(id),
-  delivered_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (alert_id, staff_id)
-);
+-- Only ONE active alert per (patient, vital). The alert upsert depends on this.
+CREATE UNIQUE INDEX IF NOT EXISTS unique_active_alert
+  ON alerts (patient_id, vital_type)
+  WHERE status = 'active';
 
-
-CREATE TABLE alert_dispatches (
+CREATE TABLE IF NOT EXISTS alert_dispatches (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   alert_id UUID NOT NULL REFERENCES alerts(id),
   staff_id UUID NOT NULL REFERENCES staff(id),
