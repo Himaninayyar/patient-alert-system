@@ -73,7 +73,6 @@ app.post("/vital-readings", async (req, res) => {
     );
 
     // Step 2: check if this reading is dangerous
-    console.log("CHECK:", vital_type, value, "dangerous =", isDangerous(vital_type, value));
 if (isDangerous(vital_type,value)) {
   const alertResult = await pool.query(
     `INSERT INTO alerts (patient_id, vital_type)

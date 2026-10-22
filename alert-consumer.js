@@ -1,13 +1,12 @@
 const amqp = require("amqplib");
 const pool = require("./db");
 const { WebSocketServer, WebSocket } = require("ws");
-
+const { declareTopology } = require("./queue");
 const wss = new WebSocketServer({ port: 8080 });
 
 function broadcast(data) {
   const text = JSON.stringify(data);
   for (const client of wss.clients) {
-    // blank: if client.readyState === WebSocket.OPEN, send text to that client
     if (client.readyState === WebSocket.OPEN) {
       client.send(text);
     }
@@ -20,10 +19,7 @@ async function startConsumer() {
   const connection = await amqp.connect("amqp://localhost");
   const channel = await connection.createChannel();
 
-  await channel.assertQueue("alert-dispatch", {
-    durable: true,
-    deadLetterExchange: "alert-dlx",
-  });
+  await declareTopology(channel);
 
   console.log("Alert consumer waiting for messages...");
 
