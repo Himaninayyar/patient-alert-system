@@ -61,3 +61,12 @@ CREATE TABLE IF NOT EXISTS alert_dispatches (
   delivered_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (alert_id, staff_id)
 );
+
+
+CREATE TABLE IF NOT EXISTS outbox (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  alert_id UUID NOT NULL REFERENCES alerts(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  payload JSONB NOT NULL ,
+  published_at TIMESTAMPTZ 
+);

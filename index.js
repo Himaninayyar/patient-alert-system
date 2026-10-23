@@ -4,6 +4,8 @@ const PORT=3000;
 const pool=require("./db");
 const {connectQueue,getChannel}=require("./queue");
 const {isDangerous} =require("./thresholds");
+const { startOutboxPublisher } = require("./outbox-publisher");
+
 
 require("dotenv").config();
 
@@ -14,9 +16,10 @@ app.get("/",(req,res)=>{
     res.send("server is alive");
 });
 
-app.listen(PORT,async()=>{
-    console.log(`Server is running on http://localhost:${PORT}`);
-    await connectQueue();
+app.listen(PORT, async () => {
+  console.log(`Server is running on http://localhost:${PORT}`);
+  await connectQueue();
+  startOutboxPublisher();
 });
 
 
@@ -63,53 +66,53 @@ app.get("/patients/:id",async(req,res)=>{
 
 
 app.post("/vital-readings", async (req, res) => {
-  try {
-    const { patient_id, vital_type, value } = req.body;
+  const { patient_id, vital_type, value } = req.body;
+  const client = await pool.connect();   // borrow ONE connection
 
-    // Step 1: insert the vital reading (you already have this working)
-    const result = await pool.query(
-      "INSERT INTO vital_readings(patient_id,vital_type,value) values($1,$2,$3) RETURNING *",
+  try {
+    await client.query("BEGIN");
+
+    const result = await client.query(
+      "INSERT INTO vital_readings(patient_id,vital_type,value) VALUES($1,$2,$3) RETURNING *",
       [patient_id, vital_type, value]
     );
 
-    // Step 2: check if this reading is dangerous
-if (isDangerous(vital_type,value)) {
-  const alertResult = await pool.query(
-    `INSERT INTO alerts (patient_id, vital_type)
-     VALUES ($1, $2)
-     ON CONFLICT (patient_id, vital_type) WHERE status = 'active'
-     DO UPDATE SET last_seen_at = now()
-     RETURNING *`,
-    [patient_id, vital_type]
-  );
+    if (isDangerous(vital_type, value)) {
+      const alertResult = await client.query(
+        `INSERT INTO alerts (patient_id, vital_type)
+         VALUES ($1, $2)
+         ON CONFLICT (patient_id, vital_type) WHERE status = 'active'
+         DO UPDATE SET last_seen_at = now()
+         RETURNING *`,
+        [patient_id, vital_type]
+      );
 
-  const alert=alertResult.rows[0];
-  const isNewAlert=alert.created_at.getTime()===alert.last_seen_at.getTime();
+      const alert = alertResult.rows[0];
+      const isNewAlert = alert.created_at.getTime() === alert.last_seen_at.getTime();
 
-  if(isNewAlert){
-   const channel= getChannel();
-   const messagePayload={alertId:alert.id,vital_type:vital_type,value:value};
-  
+      if (isNewAlert) {
+        // the "to-do note": saved in the SAME transaction as the alert
+        const messagePayload = { alertId: alert.id, vital_type, value };
+        await client.query(
+          "INSERT INTO outbox (alert_id, payload) VALUES ($1, $2)",
+          [alert.id, messagePayload]
+        );
+      }
+    }
 
-   channel.sendToQueue(
-  "alert-dispatch",
-  Buffer.from(JSON.stringify(messagePayload)),
-  { persistent: true }
-);
-   console.log("Published alert to queue :",alert.id);
-
-}
-}
-
+    await client.query("COMMIT");          // everything saves together
     res.status(201).json(result.rows[0]);
   } catch (err) {
-     if (err.code === "23502") {
+    await client.query("ROLLBACK");        // any failure undoes everything
+    if (err.code === "23502") {
       res.status(400).json({ error: "Missing required field: " + err.column });
     } else if (err.code === "23503") {
       res.status(400).json({ error: "Referenced patient does not exist" });
     } else {
       res.status(500).json({ error: err.message });
     }
+  } finally {
+    client.release();                      // always give the connection back
   }
 });
 
