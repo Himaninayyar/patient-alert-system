@@ -8,7 +8,7 @@ async function declareTopology(ch) {
   await ch.assertQueue("alert-dispatch-dlq", { durable: true });
   await ch.bindQueue("alert-dispatch-dlq", "alert-dlx", "");
 
-  // 2) main queue (this was the missing piece)
+  // 2) main queue
   await ch.assertQueue("alert-dispatch", {
     durable: true,
     deadLetterExchange: "alert-dlx",
@@ -24,12 +24,31 @@ async function declareTopology(ch) {
 }
 
 async function connectQueue() {
-  const connection = await amqp.connect("amqp://localhost");
-  channel = await connection.createChannel();
+  const connection = await amqp.connect("amqp://localhost", {
+    recovery: {
+      initialDelay: 500,      // first retry after 0.5 s
+      maxDelay: 10000,        // never wait more than 10 s
+      waitForConnect: false,  // don't block startup if RabbitMQ is down
+      async setup(model) {
+        // runs after EVERY successful (re)connect: new channel + topology
+        const ch = await model.createChannel();
+        await declareTopology(ch);
+        channel = ch;
+      },
+    },
+  });
 
-  await declareTopology(channel);
-
-  console.log("Connected to RabbitMQ");
+  connection.on("connect", () => console.log("Connected to RabbitMQ"));
+  connection.on("disconnect", (err) => {
+    channel = null;           // nothing can be published until we reconnect
+    console.warn("RabbitMQ disconnected:", err ? err.message : "unknown reason");
+  });
+  connection.on("reconnect-scheduled", ({ attempt, delay }) => {
+    console.log(`RabbitMQ unavailable, retry ${attempt} in ${delay} ms`);
+  });
+  connection.on("error", (err) => {
+    console.error("RabbitMQ connection error:", err.message);  // without this, Node crashes
+  });
 }
 
 function getChannel() {
