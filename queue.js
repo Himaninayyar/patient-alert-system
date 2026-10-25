@@ -31,7 +31,7 @@ async function connectQueue() {
       waitForConnect: false,  // don't block startup if RabbitMQ is down
       async setup(model) {
         // runs after EVERY successful (re)connect: new channel + topology
-        const ch = await model.createChannel();
+        const ch = await model.createConfirmChannel();
         await declareTopology(ch);
         channel = ch;
       },

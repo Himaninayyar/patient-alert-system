@@ -10,6 +10,7 @@ async function publishPending() {
   );
 
   for (const row of rows) {
+    await channel.waitForConfirms();
     channel.sendToQueue(
       "alert-dispatch",
       Buffer.from(JSON.stringify(row.payload)),
