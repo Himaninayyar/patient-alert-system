@@ -5,7 +5,7 @@ const pool=require("./db");
 const {connectQueue,getChannel}=require("./queue");
 const {isDangerous} =require("./thresholds");
 const { startOutboxPublisher } = require("./outbox-publisher");
-
+const { validateVitalReading } = require("./validation");
 
 require("dotenv").config();
 
@@ -66,6 +66,12 @@ app.get("/patients/:id",async(req,res)=>{
 
 
 app.post("/vital-readings", async (req, res) => {
+
+    const problem = validateVitalReading(req.body);
+  if (problem) {
+    return res.status(400).json({ error: problem });
+  }
+  
   const { patient_id, vital_type, value } = req.body;
   const client = await pool.connect();   // borrow ONE connection
 
