@@ -1,13 +1,12 @@
+const config = require("./config");
 const express=require("express");
 const app=express();
-const PORT=3000;
+const PORT=config.port;
 const pool=require("./db");
 const {connectQueue,getChannel}=require("./queue");
 const {isDangerous} =require("./thresholds");
 const { startOutboxPublisher } = require("./outbox-publisher");
 const { validateVitalReading } = require("./validation");
-
-require("dotenv").config();
 
 app.use(express.json());
 
@@ -16,7 +15,12 @@ app.get("/",(req,res)=>{
     res.send("server is alive");
 });
 
-app.listen(PORT, async () => {
+app.listen(PORT, async (err) => {
+  if (err) {
+    console.error(`Cannot start: port ${PORT} is not available:`, err.message);
+    process.exit(1);
+  }
+
   console.log(`Server is running on http://localhost:${PORT}`);
   await connectQueue();
   startOutboxPublisher();
@@ -71,7 +75,7 @@ app.post("/vital-readings", async (req, res) => {
   if (problem) {
     return res.status(400).json({ error: problem });
   }
-  
+
   const { patient_id, vital_type, value } = req.body;
   const client = await pool.connect();   // borrow ONE connection
 

@@ -2,8 +2,9 @@ const amqp = require("amqplib");
 const pool = require("./db");
 const { declareTopology } = require("./queue");
 const { WebSocketServer, WebSocket } = require("ws");
+const config = require("./config");
 
-const wss = new WebSocketServer({ port: 8080 });
+const wss = new WebSocketServer({ port: config.wsPort });
 
 function broadcast(data) {
   const text = JSON.stringify(data);
@@ -99,7 +100,7 @@ async function handleMessage(ch, msg) {
 }
 
 async function startConsumer() {
-  const connection = await amqp.connect("amqp://localhost", {
+  const connection = await amqp.connect(config.rabbitmqUrl, {
     recovery: {
       initialDelay: 500,
       maxDelay: 10000,
