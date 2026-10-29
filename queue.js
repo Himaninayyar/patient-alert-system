@@ -1,4 +1,5 @@
 const amqp = require("amqplib");
+const config = require("./config");
 
 let channel = null;
 
@@ -24,7 +25,7 @@ async function declareTopology(ch) {
 }
 
 async function connectQueue() {
-  const connection = await amqp.connect("amqp://localhost", {
+  const connection = await amqp.connect(config.rabbitmqUrl, {
     recovery: {
       initialDelay: 500,      // first retry after 0.5 s
       maxDelay: 10000,        // never wait more than 10 s

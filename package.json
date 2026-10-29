@@ -1,10 +1,13 @@
 {
   "name": "patient-alert-system",
   "version": "1.0.0",
-  "description": "A real-time patient vitals monitoring and alert dispatch system.\r Vitals are ingested continuously, evaluated against risk thresholds,\r deduplicated, and dispatched in real time to on-duty staff — built\r to explore caching, message queues, concurrency handling, and\r fault-tolerant system design.",
+  "description": "A real-time patient vitals monitoring and alert dispatch system. Vitals are ingested continuously, evaluated against risk thresholds, deduplicated, and dispatched in real time to on-duty staff, built to explore caching, message queues, concurrency handling, and fault-tolerant system design.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node index.js",
+    "consumer": "node alert-consumer.js",
+    "dev": "nodemon index.js",
+    "test": "node --test \"test/*.test.js\""
   },
   "repository": {
     "type": "git",

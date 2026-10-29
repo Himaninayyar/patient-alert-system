@@ -7,21 +7,16 @@ const THRESHOLDS = {
 function isDangerous(vital_type, value) {
   const rule = THRESHOLDS[vital_type];
 
-  // blank 1: if there is no rule for this vital, return false
-if(!rule){
+  // no rule for this vital (for example blood_pressure): never dangerous
+  if (!rule) {
     return false;
-}
-
-
-  // blank 2: if rule.direction is "above", return true when value is bigger than rule.limit
-
-  if(rule.direction=="above"){
-    return value>rule.limit;
   }
-  // blank 3: otherwise return true when value is smaller than rule.limit
-    return value<rule.limit;
 
+  if (rule.direction === "above") {
+    return value > rule.limit;
+  }
+
+  return value < rule.limit;
 }
-
 
 module.exports = { isDangerous };
