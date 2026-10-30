@@ -7,6 +7,7 @@ const {connectQueue,getChannel}=require("./queue");
 const {isDangerous} =require("./thresholds");
 const { startOutboxPublisher } = require("./outbox-publisher");
 const { validateVitalReading } = require("./validation");
+const { UPSERT_ALERT } = require("./sql");
 
 app.use(express.json());
 
@@ -70,8 +71,7 @@ app.get("/patients/:id",async(req,res)=>{
 
 
 app.post("/vital-readings", async (req, res) => {
-
-    const problem = validateVitalReading(req.body);
+  const problem = validateVitalReading(req.body);
   if (problem) {
     return res.status(400).json({ error: problem });
   }
@@ -88,14 +88,7 @@ app.post("/vital-readings", async (req, res) => {
     );
 
     if (isDangerous(vital_type, value)) {
-      const alertResult = await client.query(
-        `INSERT INTO alerts (patient_id, vital_type)
-         VALUES ($1, $2)
-         ON CONFLICT (patient_id, vital_type) WHERE status = 'active'
-         DO UPDATE SET last_seen_at = now()
-         RETURNING *`,
-        [patient_id, vital_type]
-      );
+      const alertResult = await client.query(UPSERT_ALERT, [patient_id, vital_type]);
 
       const alert = alertResult.rows[0];
       const isNewAlert = alert.created_at.getTime() === alert.last_seen_at.getTime();
@@ -125,6 +118,7 @@ app.post("/vital-readings", async (req, res) => {
     client.release();                      // always give the connection back
   }
 });
+
 
 app.get("/alerts",async(req,res)=>{
   try{
