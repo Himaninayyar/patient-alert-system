@@ -134,3 +134,12 @@ async function startConsumer() {
 }
 
 startConsumer();
+
+// Stopping is safe at any moment: a message that was not acknowledged yet is
+// delivered again by RabbitMQ, and the ledger stops a nurse being told twice.
+function shutdown(signal) {
+  console.log(`${signal} received, stopping consumer`);
+  process.exit(0);
+}
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));

@@ -17,7 +17,9 @@ app.get("/",(req,res)=>{
     res.send("server is alive");
 });
 
-app.listen(PORT, async (err) => {
+let stopOutbox = () => {};
+
+const server = app.listen(PORT, async (err) => {
   if (err) {
     console.error(`Cannot start: port ${PORT} is not available:`, err.message);
     process.exit(1);
@@ -25,9 +27,35 @@ app.listen(PORT, async (err) => {
 
   console.log(`Server is running on http://localhost:${PORT}`);
   await connectQueue();
-  startOutboxPublisher();
+  stopOutbox = startOutboxPublisher();
 });
 
+async function shutdown(signal) {
+  console.log(`${signal} received, shutting down...`);
+
+  // safety net: never hang longer than Docker is willing to wait
+  const force = setTimeout(() => {
+    console.error("Shutdown took too long, forcing exit");
+    process.exit(1);
+  }, 10000);
+  force.unref();
+
+  try {
+    stopOutbox();                                          // 1) stop creating new work
+    const closed = new Promise((resolve) => server.close(resolve)); // 2) stop taking requests, let running ones finish
+    const sweeper = setInterval(() => server.closeIdleConnections(), 100);
+    await closed;
+    clearInterval(sweeper);
+    await pool.end();                                      // 3) close database connections
+    console.log("Shutdown complete");
+  } catch (err) {
+    console.error("Error during shutdown:", err.message);
+  }
+  process.exit(0);
+}
+
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));
 
 app.get("/patients",async(req,res)=>{
     try{

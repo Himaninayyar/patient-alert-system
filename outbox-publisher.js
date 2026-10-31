@@ -23,7 +23,7 @@ async function publishPending() {
 
 function startOutboxPublisher() {
   let running = false;
-  setInterval(async () => {
+  const timer=setInterval(async () => {
     if (running) return;          // don't start a round while the last one is still going
     running = true;
     try {
@@ -34,6 +34,7 @@ function startOutboxPublisher() {
       running = false;
     }
   }, 2000);
+  return ()=>clearInterval(timer);
 }
 
 module.exports = { startOutboxPublisher };
