@@ -31,6 +31,9 @@ async function handleMessage(ch, msg) {
     // Question 1 and 2 together: who is on duty, and were they already told?
     const result = await pool.query(
       `SELECT staff.id, staff.name, staff.role,
+        patients.name AS patient_name,
+        patients.ward_no AS ward_no,
+        patients.bed_no AS bed_no,
               EXISTS (
                 SELECT 1 FROM alert_dispatches d
                 WHERE d.alert_id = alerts.id AND d.staff_id = staff.id
@@ -72,10 +75,14 @@ async function handleMessage(ch, msg) {
       // 1) tell first
       console.log(`Notifying ${person.name} (${person.role}): ${alert.vital_type} = ${alert.value}`);
       broadcast({
-        staff: person.name,
-        role: person.role,
-        vital_type: alert.vital_type,
-        value: alert.value,
+         alertId: alert.alertId,
+          staff: person.name,
+          role: person.role,
+          patient_name: person.patient_name,
+          ward_no: person.ward_no,
+          bed_no: person.bed_no,
+          vital_type: alert.vital_type,
+          value: alert.value,
       });
 
       // 2) then write it in the notebook

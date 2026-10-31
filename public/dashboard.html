@@ -1,0 +1,165 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Patient Alert Dashboard</title>
+
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      max-width: 720px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+      background: #f8fafc;
+      color: #1e293b;
+    }
+
+    h1 {
+      margin-bottom: 1rem;
+    }
+
+    #status {
+      font-size: 0.9rem;
+      margin-bottom: 1rem;
+    }
+
+    #banner {
+      background: #fff3cd;
+      border: 1px solid #e5c76b;
+      border-radius: 6px;
+      padding: 0.8rem;
+      margin-bottom: 1rem;
+      display: none;
+    }
+
+    .alert {
+      background: white;
+      border: 1px solid #d33;
+      border-left-width: 6px;
+      border-radius: 6px;
+      padding: 0.8rem;
+      margin-bottom: 0.8rem;
+    }
+
+    .meta {
+      color: #555;
+      font-size: 0.85rem;
+      margin-top: 0.4rem;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Active Alerts</h1>
+
+  <div id="status">Connecting...</div>
+  <div id="banner"></div>
+  <div id="list"></div>
+
+  <script>
+    const statusEl = document.getElementById("status");
+    const bannerEl = document.getElementById("banner");
+    const listEl = document.getElementById("list");
+
+    // Fetch the current active alerts from the database through Express.
+    async function loadActive() {
+      try {
+        const res = await fetch("/alerts/active");
+
+        if (!res.ok) {
+          throw new Error("HTTP " + res.status);
+        }
+
+        const rows = await res.json();
+
+        // Replace the old list with the latest database results.
+        listEl.replaceChildren(...rows.map(makeCard));
+
+        if (rows.length === 0) {
+          const none = document.createElement("p");
+          none.textContent = "No active alerts.";
+          listEl.appendChild(none);
+        }
+      } catch (err) {
+        statusEl.textContent = "Could not load alerts: " + err.message;
+      }
+    }
+
+    // Create one alert card using safe text insertion.
+    function makeCard(a) {
+      const card = document.createElement("div");
+      card.className = "alert";
+
+      const title = document.createElement("strong");
+      title.textContent =
+        a.patient_name + ": " + a.vital_type + " = " + a.latest_value;
+
+      const meta = document.createElement("div");
+      meta.className = "meta";
+
+      meta.textContent =
+        "Ward " + a.ward_no +
+        ", bed " + a.bed_no +
+        " | Raised " + new Date(a.created_at).toLocaleString() +
+        " | Last reading " + new Date(a.last_seen_at).toLocaleString();
+
+      card.append(title, meta);
+      return card;
+    }
+
+    // Show a live notification received through WebSocket.
+    function showBanner(m) {
+      bannerEl.textContent =
+        "New alert for " + m.staff +
+        " (" + m.role + "): " +
+        m.patient_name +
+        ", ward " + m.ward_no +
+        ", bed " + m.bed_no +
+        " - " + m.vital_type +
+        " = " + m.value;
+
+      bannerEl.style.display = "block";
+    }
+
+    // Connect to the WebSocket server and reconnect if disconnected.
+    function connect() {
+      const ws = new WebSocket(
+        "ws://" + location.hostname + ":8080"
+      );
+
+      ws.onopen = () => {
+        statusEl.textContent = "Live";
+        loadActive();
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data);
+          showBanner(message);
+          loadActive();
+        } catch (err) {
+          console.error("Invalid WebSocket message:", err);
+        }
+      };
+
+      ws.onclose = () => {
+        statusEl.textContent = "Disconnected, retrying in 3 seconds...";
+        setTimeout(connect, 3000);
+      };
+
+      ws.onerror = () => {
+        ws.close();
+      };
+    }
+
+    // Initial database fetch and WebSocket connection.
+    loadActive();
+    connect();
+
+    // Periodically refresh so resolved alerts disappear too.
+    setInterval(loadActive, 15000);
+  </script>
+</body>
+</html>

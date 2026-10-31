@@ -8,9 +8,10 @@ const {isDangerous} =require("./thresholds");
 const { startOutboxPublisher } = require("./outbox-publisher");
 const { validateVitalReading } = require("./validation");
 const { UPSERT_ALERT } = require("./sql");
+const path = require("path");
 
 app.use(express.json());
-
+app.use(express.static(path.join(__dirname, "public")));
 
 app.get("/",(req,res)=>{
     res.send("server is alive");
@@ -130,6 +131,29 @@ app.get("/alerts",async(req,res)=>{
   }
 );
 
+app.get("/alerts/active", async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT a.id AS alert_id,
+              a.vital_type,
+              a.created_at,
+              a.last_seen_at,
+              p.name AS patient_name,
+              p.ward_no,
+              p.bed_no,
+              (SELECT r.value FROM vital_readings r
+                WHERE r.patient_id = a.patient_id AND r.vital_type = a.vital_type
+                ORDER BY r.recorded_at DESC LIMIT 1) AS latest_value
+       FROM alerts a
+       JOIN patients p ON p.id = a.patient_id
+       WHERE a.status = 'active'
+       ORDER BY a.created_at DESC`
+    );
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 app.patch("/alerts/:id/resolve", async (req, res) => {
   try {
