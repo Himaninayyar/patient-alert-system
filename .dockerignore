@@ -1,0 +1,9 @@
+node_modules
+.env
+.git
+.github
+*.png
+PROGRESS.md
+notes-private
+Dockerfile
+docker-compose.yml
